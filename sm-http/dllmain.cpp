@@ -9,8 +9,8 @@
 */
 
 int tick(lua_State*) {
-    for (size_t i = requests.size(); i-- > 0;) {
-        auto& request = requests[i];
+    for (size_t i = requests->size(); i-- > 0;) {
+        auto& request = requests->at(i);
         lua_State* L = request.state;
 
         if (request.future_response.wait_for(std::chrono::seconds(0)) != std::future_status::ready) continue;
@@ -35,7 +35,7 @@ int tick(lua_State*) {
 
         luaL_unref(L, LUA_REGISTRYINDEX, request.callbackRef);
 
-        requests.erase(requests.begin() + i); // pop the request
+        requests->erase(requests->begin() + i); // pop the request
 	}
 
 	return 0;
@@ -60,49 +60,85 @@ int request(lua_State* L) {
 
     auto future_response = cpr::GetAsync(
         cpr::Url{ url },
-        cpr::Timeout{5000},
+        cpr::Timeout{ 60 * 1000 },
         headers
     );
 
     int ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
     Request request = { std::move(future_response), ref, L };
-    requests.push_back( std::move(request) );
+    requests->push_back( std::move(request) );
 
     return 0;
 }
 
-// sm_http.post(url, callback, payload)
+// sm_http.post(url, payload, callback, [headers])
 int post(lua_State* L) {
-    lua_checkargs(L, 3);
+    lua_checkargs(L, 3, true);
 
     size_t size;
     const char* urltmp = luaL_checklstring(L, 1, &size);
     std::string url(urltmp, size);
 
-    luaL_checktype(L, 2, LUA_TFUNCTION);
+    cpr::Payload payload = lua_checkpayload(L, 2);
+
+    luaL_checktype(L, 3, LUA_TFUNCTION);
+
+    cpr::Header headers;
+    if (lua_gettop(L) == 4) { // [headers]
+        headers = lua_checkheaders(L, 4);
+    }
 
     auto future_response = cpr::PostAsync(
         cpr::Url{ url },
-        cpr::Timeout{ 5000 },
-        lua_checkpayload(L, 3)
+        cpr::Timeout{ 60 * 1000 },
+        payload,
+        headers
     );
 
-    lua_pushvalue(L, 2);
+    lua_pushvalue(L, 3);
 
     int ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
     Request request = { std::move(future_response), ref, L };
-    requests.push_back(std::move(request));
+    requests->push_back(std::move(request));
+
+    return 0;
+}
+
+/* TODO:
+* RAWPOST
+* HEAD
+* PUT
+* DELETE
+* PATCH
+* OPTIONS
+*/
+
+int cleanup(lua_State* L) {
+    if (requests) {
+        delete requests;
+        requests = nullptr;
+    }
 
     return 0;
 }
 
 extern "C" {
     __declspec(dllexport) int luaopen_sm_http(lua_State* L) {
+        requests = new std::vector<Request>();
+
         luaL_register(L, "sm_http", functions);
+
+        // for cleaning up our stuff
+        lua_newuserdata(L, sizeof(void*));
+        luaL_newmetatable(L, "sm_http.cleanup");
+        lua_pushcfunction(L, cleanup);
+        lua_setfield(L, -2, "__gc");
+
+        lua_setmetatable(L, -2);
+        luaL_ref(L, LUA_REGISTRYINDEX);
+     
         return 1;
     }
 }
-
-// TODO: use garbage collection to cleanup when changing state

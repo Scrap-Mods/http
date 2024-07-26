@@ -11,7 +11,7 @@ struct Request {
     lua_State* state;
 };
 
-std::vector<Request> requests;
+static std::vector<Request>* requests = nullptr;
 
 void lua_checkargs(lua_State* L, const int argc) {
     const int args = lua_gettop(L);
