@@ -6,6 +6,25 @@
     sm_http.request("google.com", function(data, url, status, headers)
         print(data)
     end)
+
+    local socket = sm_http.createWebsocket()
+
+    socket:setHeader( "a", "b" )
+    socket:connect("ws://whaa.com")
+    socket:disconnect()
+
+    socket:isConnected()
+
+    socket:send("bleh")
+
+    function socket:OnConnected()
+    end
+
+    function socket:OnDisconnected()
+    end
+
+    function socket:OnMessage(txt)
+    end
 */
 
 int tick(lua_State*) {
@@ -15,7 +34,7 @@ int tick(lua_State*) {
 
         if (request.future_response.wait_for(std::chrono::seconds(0)) != std::future_status::ready) continue;
             
-        // call callback(data, url)
+        // call callback(data, url, status, headers)
         cpr::Response response = request.future_response.get();
 
         lua_rawgeti(L, LUA_REGISTRYINDEX, request.callbackRef);
@@ -42,7 +61,7 @@ int tick(lua_State*) {
 }
 
 // sm_http.request(url, callback, [headers])
-int request(lua_State* L) {
+int get(lua_State* L) {
     lua_checkargs(L, 2, true);
 
     size_t size;
@@ -51,7 +70,7 @@ int request(lua_State* L) {
 
     luaL_checktype(L, 2, LUA_TFUNCTION); // callback
 
-    cpr::Header headers;
+    cpr::Header headers = getDefaultHeader();
 
     if (lua_gettop(L) == 3) { // [headers]
         headers = lua_checkheaders(L, 3);
@@ -84,7 +103,7 @@ int post(lua_State* L) {
 
     luaL_checktype(L, 3, LUA_TFUNCTION);
 
-    cpr::Header headers;
+    cpr::Header headers = getDefaultHeader();
     if (lua_gettop(L) == 4) { // [headers]
         headers = lua_checkheaders(L, 4);
     }

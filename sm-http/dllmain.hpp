@@ -5,6 +5,12 @@
 #include <vector>
 #include <cpr/curl_container.h>
 
+inline cpr::Header getDefaultHeader() {
+    return {
+        {"User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"}
+    };
+}
+
 struct Request {
     cpr::AsyncWrapper<cpr::Response, false> future_response;
     int callbackRef;
@@ -68,11 +74,12 @@ cpr::Payload lua_checkpayload(lua_State* L, int narg) {
 }
 
 int tick(lua_State*);
-int request(lua_State* L);
+
+int get(lua_State* L);
 int post(lua_State* L);
 
 static const struct luaL_Reg functions[] = {
-    {"request", request},
+    {"get", get},
     {"post", post},
     {"tick", tick},
     {NULL, NULL}
