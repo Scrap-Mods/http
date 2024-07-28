@@ -9,7 +9,7 @@
   "name": "sm-http",
   "version": "1.0",
   "dependencies": [
-    "luajit",
-    "cpr"
+    "cpr",
+    "luajit"
   ]
 }

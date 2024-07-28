@@ -12,9 +12,15 @@ inline cpr::Header getDefaultHeader() {
 }
 
 struct Request {
-    cpr::AsyncWrapper<cpr::Response, false> future_response;
-    int callbackRef;
-    lua_State* state;
+    cpr::AsyncResponse m_future_response;
+    int m_callbackRef;
+    lua_State* m_state;
+
+    Request(cpr::AsyncResponse&& future_response, int callbackref, lua_State* state) :
+        m_future_response(std::move(future_response)),
+        m_callbackRef(callbackref),
+        m_state(state)
+    {}
 };
 
 static std::vector<Request>* requests = nullptr;
@@ -73,14 +79,40 @@ cpr::Payload lua_checkpayload(lua_State* L, int narg) {
     return cpr::Payload(pairs.begin(), pairs.end());
 }
 
+enum class postRquestEnum {
+    post,
+    put,
+    patch
+};
+
+enum class getRquestEnum {
+    get,
+    del,
+    head,
+    options
+};
+
 int tick(lua_State*);
 
 int get(lua_State* L);
+int del(lua_State* L);
+int head(lua_State* L);
+int options(lua_State* L);
+
 int post(lua_State* L);
+int put(lua_State* L);
+int patch(lua_State* L);
 
 static const struct luaL_Reg functions[] = {
     {"get", get},
+    {"del", del},
+    {"head", head},
+    {"options", options},
+
     {"post", post},
+    {"put", put},
+    {"patch", patch},
+
     {"tick", tick},
     {NULL, NULL}
 };

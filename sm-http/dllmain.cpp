@@ -6,38 +6,19 @@
     sm_http.request("google.com", function(data, url, status, headers)
         print(data)
     end)
-
-    local socket = sm_http.createWebsocket()
-
-    socket:setHeader( "a", "b" )
-    socket:connect("ws://whaa.com")
-    socket:disconnect()
-
-    socket:isConnected()
-
-    socket:send("bleh")
-
-    function socket:OnConnected()
-    end
-
-    function socket:OnDisconnected()
-    end
-
-    function socket:OnMessage(txt)
-    end
 */
 
 int tick(lua_State*) {
     for (size_t i = requests->size(); i-- > 0;) {
         auto& request = requests->at(i);
-        lua_State* L = request.state;
+        lua_State* L = request.m_state;
 
-        if (request.future_response.wait_for(std::chrono::seconds(0)) != std::future_status::ready) continue;
+        if (request.m_future_response.wait_for(std::chrono::seconds(0)) != std::future_status::ready) continue;
             
         // call callback(data, url, status, headers)
-        cpr::Response response = request.future_response.get();
+        cpr::Response response = request.m_future_response.get();
 
-        lua_rawgeti(L, LUA_REGISTRYINDEX, request.callbackRef);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, request.m_callbackRef);
 
         lua_pushstring(L, response.text.c_str());
         lua_pushstring(L, response.url.c_str());
@@ -52,7 +33,7 @@ int tick(lua_State*) {
 
         lua_call(L, 4, 0);
 
-        luaL_unref(L, LUA_REGISTRYINDEX, request.callbackRef);
+        luaL_unref(L, LUA_REGISTRYINDEX, request.m_callbackRef);
 
         requests->erase(requests->begin() + i); // pop the request
 	}
@@ -60,46 +41,79 @@ int tick(lua_State*) {
 	return 0;
 }
 
-// sm_http.request(url, callback, [headers])
-int get(lua_State* L) {
-    lua_checkargs(L, 2, true);
-
-    size_t size;
-    const char* urltmp = luaL_checklstring(L, 1, &size); // url
-    std::string url(urltmp, size);
-
-    luaL_checktype(L, 2, LUA_TFUNCTION); // callback
-
-    cpr::Header headers = getDefaultHeader();
-
-    if (lua_gettop(L) == 3) { // [headers]
-        headers = lua_checkheaders(L, 3);
-        lua_pushvalue(L, 2);
-    }
-
-    auto future_response = cpr::GetAsync(
-        cpr::Url{ url },
-        cpr::Timeout{ 60 * 1000 },
-        headers
-    );
+void pushResponse(lua_State* L, int narg, cpr::AsyncResponse&& m_future_response) {
+    lua_pushvalue(L, narg);
 
     int ref = luaL_ref(L, LUA_REGISTRYINDEX);
-
-    Request request = { std::move(future_response), ref, L };
-    requests->push_back( std::move(request) );
-
-    return 0;
+    requests->emplace_back(std::move(m_future_response), ref, L);
 }
 
-// sm_http.post(url, payload, callback, [headers])
-int post(lua_State* L) {
-    lua_checkargs(L, 3, true);
+void genericGetRequest(lua_State* L, getRquestEnum method) {
+    lua_checkargs(L, 2, true);
+
+    std::shared_ptr<cpr::Session> session = std::make_shared<cpr::Session>();
 
     size_t size;
-    const char* urltmp = luaL_checklstring(L, 1, &size);
-    std::string url(urltmp, size);
+    const char* url = luaL_checklstring(L, 1, &size);
 
-    cpr::Payload payload = lua_checkpayload(L, 2);
+    session->SetUrl(cpr::Url(url, size));
+    session->SetTimeout(cpr::Timeout{ 60 * 1000 });
+
+    luaL_checktype(L, 2, LUA_TFUNCTION);
+
+    cpr::Header headers = getDefaultHeader();
+    if (lua_gettop(L) == 3) { // [headers]
+        headers = lua_checkheaders(L, 3);
+    }
+
+    session->SetHeader(headers);
+
+    switch (method) {
+    case getRquestEnum::get:
+        pushResponse(L, 2, std::move(session->GetAsync()));
+
+        break;
+    case getRquestEnum::del:
+        pushResponse(L, 2, std::move(session->DeleteAsync()));
+
+        break;
+    case getRquestEnum::head:
+        pushResponse(L, 2, std::move(session->HeadAsync()));
+
+        break;
+    case getRquestEnum::options:
+        pushResponse(L, 2, std::move(session->OptionsAsync()));
+
+        break;
+    default:
+        assert();
+        return;
+    }
+}
+
+void genericPostRequest(lua_State* L, postRquestEnum method) {
+    lua_checkargs(L, 3, true);
+
+    std::shared_ptr<cpr::Session> session = std::make_shared<cpr::Session>();
+
+    size_t size;
+    const char* url = luaL_checklstring(L, 1, &size);
+
+    session->SetUrl(cpr::Url(url, size));
+    session->SetTimeout(cpr::Timeout{ 60 * 1000 });
+
+    int type = lua_type(L, 2);
+    if (type == LUA_TTABLE) {
+        session->SetPayload(lua_checkpayload(L, 2));
+    }
+    else if (type == LUA_TSTRING) {
+        size_t size;
+        const char* str = luaL_checklstring(L, 2, &size);
+        session->SetBody(cpr::Body(str, size));
+    }
+    else {
+        luaL_error(L, "Expected either a table or a string, got %s", lua_typename(L, type));
+    }
 
     luaL_checktype(L, 3, LUA_TFUNCTION);
 
@@ -108,31 +122,61 @@ int post(lua_State* L) {
         headers = lua_checkheaders(L, 4);
     }
 
-    auto future_response = cpr::PostAsync(
-        cpr::Url{ url },
-        cpr::Timeout{ 60 * 1000 },
-        payload,
-        headers
-    );
+    session->SetHeader(headers);
 
-    lua_pushvalue(L, 3);
+    switch (method) {
+    case postRquestEnum::post:
+        pushResponse(L, 3, std::move(session->PostAsync()));
 
-    int ref = luaL_ref(L, LUA_REGISTRYINDEX);
+        break;
+    case postRquestEnum::patch:
+        pushResponse(L, 3, std::move(session->PatchAsync()));
 
-    Request request = { std::move(future_response), ref, L };
-    requests->push_back(std::move(request));
+        break;
+    case postRquestEnum::put:
+        pushResponse(L, 3, std::move(session->PutAsync()));
 
+        break;
+    default:
+        assert();
+        return;
+    }
+}
+
+int get(lua_State* L) {
+    genericGetRequest(L, getRquestEnum::get);
     return 0;
 }
 
-/* TODO:
-* RAWPOST
-* HEAD
-* PUT
-* DELETE
-* PATCH
-* OPTIONS
-*/
+int del(lua_State* L) {
+    genericGetRequest(L, getRquestEnum::del);
+    return 0;
+}
+
+int head(lua_State* L) {
+    genericGetRequest(L, getRquestEnum::head);
+    return 0;
+}
+
+int options(lua_State* L) {
+    genericGetRequest(L, getRquestEnum::options);
+    return 0;
+}
+
+int post(lua_State* L) {
+    genericPostRequest(L, postRquestEnum::post);
+    return 0;
+}
+
+int put(lua_State* L) {
+    genericPostRequest(L, postRquestEnum::put);
+    return 0;
+}
+
+int patch(lua_State* L) {
+    genericPostRequest(L, postRquestEnum::patch);
+    return 0;
+}
 
 int cleanup(lua_State* L) {
     if (requests) {
