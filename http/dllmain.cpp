@@ -8,6 +8,38 @@
     end)
 */
 
+void lua_parseresponse(lua_State* L, cpr::Response response) {
+    lua_createtable(L, 0, sizeof(cpr::Response));
+
+    lua_pushstring(L, response.text.c_str());
+    lua_setfield(L, -2, "body");
+
+    lua_pushstring(L, response.url.c_str());
+    lua_setfield(L, -2, "url");
+
+    lua_pushnumber(L, response.status_code);
+    lua_setfield(L, -2, "status");
+
+    lua_pushnumber(L, (int)response.error.code);
+    lua_setfield(L, -2, "error_code");
+
+    lua_pushnumber(L, (int)response.redirect_count);
+    lua_setfield(L, -2, "redirect_count");
+
+    lua_pushstring(L, response.error.message.c_str());
+    lua_setfield(L, -2, "error");
+
+    lua_pushstring(L, response.reason.c_str());
+    lua_setfield(L, -2, "reason");
+
+    lua_createtable(L, 0, response.header.size());
+    for (const auto& header : response.header) {
+        lua_pushstring(L, header.second.c_str());
+        lua_setfield(L, -2, header.first.c_str());
+    }
+    lua_setfield(L, -2, "headers");
+}
+
 int tick(lua_State*) {
     for (size_t i = requests->size(); i-- > 0;) {
         auto& request = requests->at(i);
@@ -20,19 +52,9 @@ int tick(lua_State*) {
 
         lua_rawgeti(L, LUA_REGISTRYINDEX, request.m_callbackRef);
 
-        lua_pushstring(L, response.text.c_str());
-        lua_pushstring(L, response.url.c_str());
-        lua_pushnumber(L, response.status_code);
+        lua_parseresponse(L, response);
 
-        lua_createtable(L, 0, 5);
-
-        for (const auto& header : response.header) {
-            lua_pushstring(L, header.second.c_str());
-            lua_setfield(L, -2, header.first.c_str());
-        }
-
-        lua_call(L, 4, 0);
-
+        lua_call(L, 1, 0);
         luaL_unref(L, LUA_REGISTRYINDEX, request.m_callbackRef);
 
         requests->erase(requests->begin() + i); // pop the request
