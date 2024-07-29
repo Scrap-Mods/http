@@ -80,6 +80,8 @@ http.patch("http://www.httpbin.org/patch", {key = "new value"}, function(respons
 end)
 ```
 
+---
+
 ### Request Parameters 📋
 
 Parameters vary depending on the type of request:
@@ -111,6 +113,19 @@ The response table provided to the callback includes:
 - **error (string)**: Error message, if any.
 - **reason (string)**: Status code reason phrase.
 - **headers (table)**: Response headers as key-value pairs.
+
+---
+
+### Polling for Requests 🔄
+
+To ensure that the library processes pending requests and handles responses, you need to call the `http.tick` function regularly, typically in your main loop or update function.
+
+```lua
+-- In the case of Scrap Mechanic, something like this would be enough.
+function <part>:server_onFixedUpdate()
+    http.tick()
+end
+```
 
 ### Example 📘
 
