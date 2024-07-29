@@ -24,7 +24,7 @@
     <ProjectGuid>{4c0b1c9d-626e-40be-b8d6-bc3b1267bcfa}</ProjectGuid>
     <RootNamespace>smhttp</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>sm_http</ProjectName>
+    <ProjectName>http</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

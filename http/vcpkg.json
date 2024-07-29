@@ -6,7 +6,7 @@
       "repository": "https://github.com/Microsoft/vcpkg"
     }
   },
-  "name": "sm-http",
+  "name": "http",
   "version": "1.0",
   "dependencies": [
     "cpr",

@@ -1,9 +1,9 @@
 #include "dllmain.hpp"
 
 /*
-    local sm_http = require("sm_http")
+    local http = require("http")
 
-    sm_http.request("google.com", function(data, url, status, headers)
+    http.request("google.com", function(data, url, status, headers)
         print(data)
     end)
 */
@@ -188,14 +188,14 @@ int cleanup(lua_State* L) {
 }
 
 extern "C" {
-    __declspec(dllexport) int luaopen_sm_http(lua_State* L) {
+    __declspec(dllexport) int luaopen_http(lua_State* L) {
         requests = new std::vector<Request>();
 
-        luaL_register(L, "sm_http", functions);
+        luaL_register(L, "http", functions);
 
         // for cleaning up our stuff
         lua_newuserdata(L, sizeof(void*));
-        luaL_newmetatable(L, "sm_http.cleanup");
+        luaL_newmetatable(L, "http.cleanup");
         lua_pushcfunction(L, cleanup);
         lua_setfield(L, -2, "__gc");
 
