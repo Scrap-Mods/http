@@ -1,10 +1,14 @@
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/89664392-1fbe-4b23-a9e1-65b07fa14702"/>
+  <img height=150 src="https://github.com/user-attachments/assets/7411fcd8-e170-4a83-9a41-c5e25f0e4d5f"/>
 </p>
 
 # Overview 📖
 
 Welcome to the **HTTP Lua Library**, a sleek and non-blocking solution for making HTTP requests in Lua, powered by a robust C++ backend. This library supports various HTTP methods, including `GET`, `POST`, `PUT`, `DELETE`, and more, enabling you to perform asynchronous HTTP operations with ease and efficiency. 🎉
+
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/Scrap-Mods/http/total)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/Scrap-Mods/http/msbuild.yml)
+[![Discord](https://img.shields.io/discord/944260227195351040?link=https%3A%2F%2Fdiscord.gg%2FahzyHPn3y2)](https://discord.gg/ahzyHPn3y2)
 
 ## Installation 📦
 
