@@ -178,10 +178,10 @@ static void luaGetRequest(lua_State* L, ERequestType method)
 	size_t size;
 	const char* url = luaL_checklstring(L, 1, &size);
 
-	cpr::Session session;
-	session.SetUrl(cpr::Url(url, size));
-	session.SetTimeout(cpr::Timeout{ 60 * 1000 });
-	session.SetHeader(
+	std::shared_ptr<cpr::Session> session = std::make_shared<cpr::Session>();
+	session->SetUrl(cpr::Url(url, size));
+	session->SetTimeout(cpr::Timeout{ 60 * 1000 });
+	session->SetHeader(
 		(lua_gettop(L) == 3)
 		? lua_checkheaders(L, 3)
 		: getDefaultHeader()
@@ -190,16 +190,16 @@ static void luaGetRequest(lua_State* L, ERequestType method)
 	switch (method)
 	{
 	case ERequestType::get:
-		pushResponse(L, 2, std::move(session.GetAsync()));
+		pushResponse(L, 2, std::move(session->GetAsync()));
 		break;
 	case ERequestType::del:
-		pushResponse(L, 2, std::move(session.DeleteAsync()));
+		pushResponse(L, 2, std::move(session->DeleteAsync()));
 		break;
 	case ERequestType::head:
-		pushResponse(L, 2, std::move(session.HeadAsync()));
+		pushResponse(L, 2, std::move(session->HeadAsync()));
 		break;
 	case ERequestType::options:
-		pushResponse(L, 2, std::move(session.OptionsAsync()));
+		pushResponse(L, 2, std::move(session->OptionsAsync()));
 		break;
 	default:
 		assert("Invalid get request method");
@@ -215,21 +215,21 @@ static void luaPostRequest(lua_State* L, ERequestType method)
 	size_t size;
 	const char* url = luaL_checklstring(L, 1, &size);
 
-	cpr::Session session;
-	session.SetUrl(cpr::Url(url, size));
-	session.SetTimeout(cpr::Timeout{ 60 * 1000 });
+	std::shared_ptr<cpr::Session> session = std::make_shared<cpr::Session>();
+	session->SetUrl(cpr::Url(url, size));
+	session->SetTimeout(cpr::Timeout{ 60 * 1000 });
 
 	const int payloadType = lua_type(L, 2);
 	if (payloadType == LUA_TTABLE)
 	{
-		session.SetPayload(lua_checkpayload(L, 2));
+		session->SetPayload(lua_checkpayload(L, 2));
 	}
 	else if (payloadType == LUA_TSTRING)
 	{
 		size_t size;
 		const char* str = luaL_checklstring(L, 2, &size);
 
-		session.SetBody(cpr::Body(str, size));
+		session->SetBody(cpr::Body(str, size));
 	}
 	else
 	{
@@ -237,7 +237,7 @@ static void luaPostRequest(lua_State* L, ERequestType method)
 		return;
 	}
 
-	session.SetHeader(
+	session->SetHeader(
 		(lua_gettop(L) == 4)
 		? lua_checkheaders(L, 4)
 		: getDefaultHeader()
@@ -246,13 +246,13 @@ static void luaPostRequest(lua_State* L, ERequestType method)
 	switch (method)
 	{
 	case ERequestType::post:
-		pushResponse(L, 3, std::move(session.PostAsync()));
+		pushResponse(L, 3, std::move(session->PostAsync()));
 		break;
 	case ERequestType::patch:
-		pushResponse(L, 3, std::move(session.PatchAsync()));
+		pushResponse(L, 3, std::move(session->PatchAsync()));
 		break;
 	case ERequestType::put:
-		pushResponse(L, 3, std::move(session.PutAsync()));
+		pushResponse(L, 3, std::move(session->PutAsync()));
 		break;
 	default:
 		assert("Invalid post request method");
